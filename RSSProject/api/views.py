@@ -132,9 +132,13 @@ def get_new_by_media(request, media_id, limit):
     session = cluster.connect('rss')
     response_data = {}
     if int(limit) > 0:
-        rows = session.execute("SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC LIMIT" + str(limit))
+        query = "SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC LIMIT " + str(limit)
+        print(query)
+        rows = session.execute(query)
     else:
-        rows = session.execute("SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC")
+        query = "SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC"
+        print(query)
+        rows = session.execute(query)
     if len(rows) > 0:
         for i in rows:
             content = session.execute("SELECT content FROM news WHERE id = '" + str(i[0])  + "'")
