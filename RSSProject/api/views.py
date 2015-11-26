@@ -18,8 +18,8 @@ def create_new(request):
         user = authenticate(username=username, password=password)
         if user:
             if user.is_active:
-                graph_media = Graph()
-                auth("localhost:7474", "neo4j", "admin")
+                graph_media = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+                auth("arqui5.ing.puc.cl:7474", "neo4j", "admin")
 
                 new_node = Node("New", name = str(request.POST.get('nid')))
                 title_node = Node("Title", name = str(request.POST.get('title')))
@@ -53,7 +53,7 @@ def create_new(request):
 
                 for fact in facts:
                     fact_node = Node("Fact", name = fact)
-                    fact_relation = Relationship(new_node, "person", fact_node)
+                    fact_relation = Relationship(new_node, "fact", fact_node)
                     facts_relations.append(fact_relation)
 
 
@@ -76,14 +76,13 @@ def create_new(request):
                 for person_relation in people_relations:
                     graph_media.create(person_relation)
 
-                cluster = Cluster()
+                cluster = Cluster(['arqui4.ing.puc.cl'])
                 session = cluster.connect('rss')
                 session.execute("INSERT INTO news (id, content) VALUES (%s, %s);",
                                 (str(request.POST.get('nid')), str(request.POST.get('content'))))
 
                 session.execute("INSERT INTO news_media (id, media, up_date) VALUES (%s, %s, dateof(now()));",
                                 (str(request.POST.get('nid')), str(request.POST.get('media'))))
-
                 return  HttpResponse("Ok")
             else:
                 return HttpResponse("Your  account is disabled.")
@@ -98,10 +97,10 @@ def create_new(request):
 @token_required
 @csrf_exempt
 def get_new(request, new_id):
-    graph = Graph()
-    cluster = Cluster()
+    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+    cluster = Cluster(['arqui4.ing.puc.cl'])
     session = cluster.connect('rss')
-    auth("localhost:7474", "neo4j", "admin")
+    auth("arqui5.ing.puc.cl:7474", "neo4j", "admin")
     cypher = graph.cypher
     nid = request.POST.get('nid')
     query = "MATCH (n: New {name: '" + str(new_id) + "'})-[r]->m RETURN type(r), m.name"
@@ -122,38 +121,52 @@ def get_new(request, new_id):
                 aux_dict[str(i[0])].append(str(i[1]))
             else:
                 aux_dict[str(i[0])] = str(i[1])
+    cluster.shutdown()
     return JsonResponse(aux_dict)
 
 @token_required
 @csrf_exempt
 def get_new_by_media(request, media_id, limit):
-    graph = Graph()
-    cluster = Cluster()
+    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+    cluster = Cluster(['arqui4.ing.puc.cl'])
     session = cluster.connect('rss')
     response_data = {}
     if int(limit) > 0:
-        query = "SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC LIMIT " + str(limit)
-        print(query)
-        rows = session.execute(query)
+        rows = session.execute("SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC LIMIT " + str(limit))
     else:
-        query = "SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC"
-        print(query)
-        rows = session.execute(query)
+        rows = session.execute("SELECT id FROM news_media WHERE media = '" + str(media_id)  + "' ORDER BY up_date DESC")
     if len(rows) > 0:
         for i in rows:
             content = session.execute("SELECT content FROM news WHERE id = '" + str(i[0])  + "'")
             if len(content) > 0:
                 if len(content[0]) > 0:
                     response_data[str(i[0])] = content[0][0]
+    cluster.shutdown()
+    return JsonResponse(response_data)
+
+@token_required
+@csrf_exempt
+def get_news(request, limit):
+    cluster = Cluster(['arqui4.ing.puc.cl'])
+    session = cluster.connect('rss')
+    response_data = {}
+    if int(limit) > 0:
+        rows = session.execute("SELECT * FROM news LIMIT " + str(limit))
+    else:
+        rows = session.execute("SELECT * FROM news")
+    if len(rows) > 0:
+        for i in rows:
+            response_data[str(i[0])] = str(i[1])
+    cluster.shutdown()
     return JsonResponse(response_data)
 
 @token_required
 @csrf_exempt
 def filter_new(request, place, person, fact):
-    graph = Graph()
-    cluster = Cluster()
+    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+    cluster = Cluster(['arqui4.ing.puc.cl'])
     session = cluster.connect('rss')
-    auth("localhost:7474", "neo4j", "admin")
+    auth("arqui5.ing.puc.cl:7474", "neo4j", "admin")
     cypher = graph.cypher
     nid = request.POST.get('nid')
     s = ""
@@ -173,4 +186,5 @@ def filter_new(request, place, person, fact):
         rows = session.execute("SELECT content FROM news WHERE id = '" + str(result[0])  + "'")
         if len(rows) > 0:
             aux_dict[str(result[0])] = rows[0][0]
+    cluster.shutdown()
     return JsonResponse(aux_dict)
