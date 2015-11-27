@@ -171,11 +171,11 @@ def filter_new(request, place, person, fact):
     nid = request.POST.get('nid')
     s = ""
     if len(place) > 0:
-        s += "MATCH(n: New)-[r:place]->(m {name: '" + str(place) + "'}) \n"
+        s += "MATCH(n: New)-[r:place]->(m {name: '" + str(place).lower() + "'}) \n"
     if len(person) > 0:
-        s += "MATCH(n: New)-[r2:person]->(m2 {name: '" + str(person) + "'}) \n"
+        s += "MATCH(n: New)-[r2:person]->(m2 {name: '" + str(person).lower() + "'}) \n"
     if len(fact) > 0:
-        s += "MATCH(n: New)-[r3:fact]->(m3 {name: '" + str(fact) + "'}) \n"
+        s += "MATCH(n: New)-[r3:fact]->(m3 {name: '" + str(fact).lower() + "'}) \n"
     if len(s) == 0:
         return JsonResponse({})
     else:
