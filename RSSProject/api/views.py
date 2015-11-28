@@ -127,7 +127,6 @@ def get_new(request, new_id):
 @token_required
 @csrf_exempt
 def get_new_by_media(request, media_id, limit):
-    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
     cluster = Cluster(['arqui4.ing.puc.cl'])
     session = cluster.connect('rss')
     response_data = {}
@@ -141,6 +140,24 @@ def get_new_by_media(request, media_id, limit):
             if len(content) > 0:
                 if len(content[0]) > 0:
                     response_data[str(i[0])] = content[0][0]
+    cluster.shutdown()
+    return JsonResponse(response_data)
+
+@token_required
+@csrf_exempt
+def get_latest_news(request, media_id):
+    cluster = Cluster(['arqui4.ing.puc.cl'])
+    session = cluster.connect('rss')
+    response_data = {}
+    medias = str(media_id).split("|")
+    for media in medias:
+        rows = session.execute("SELECT id FROM news_media WHERE media = '" + str(media)  + "' ORDER BY up_date DESC LIMIT 1")
+        if len(rows) > 0:
+            for i in rows:
+                content = session.execute("SELECT content FROM news WHERE id = '" + str(i[0])  + "'")
+                if len(content) > 0:
+                    if len(content[0]) > 0:
+                        response_data[str(i[0])] = content[0][0]
     cluster.shutdown()
     return JsonResponse(response_data)
 
@@ -180,6 +197,27 @@ def filter_new(request, place, person, fact):
         return JsonResponse({})
     else:
         s += "RETURN n.name"
+    results = graph.cypher.execute(s)
+    aux_dict = {}
+    for result in results:
+        rows = session.execute("SELECT content FROM news WHERE id = '" + str(result[0])  + "'")
+        if len(rows) > 0:
+            aux_dict[str(result[0])] = rows[0][0]
+    cluster.shutdown()
+    return JsonResponse(aux_dict)
+
+@token_required
+@csrf_exempt
+def filter_by_category(request, category):
+    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+    cluster = Cluster(['arqui4.ing.puc.cl'])
+    session = cluster.connect('rss')
+    auth("arqui5.ing.puc.cl:7474", "neo4j", "admin")
+    cypher = graph.cypher
+    nid = request.POST.get('nid')
+    s = ""
+    s += "MATCH(n: New)-[r:place]->(m: Category {name: '" + str(category).lower() + "'}) \n"
+    s += "RETURN n.name"
     results = graph.cypher.execute(s)
     aux_dict = {}
     for result in results:
