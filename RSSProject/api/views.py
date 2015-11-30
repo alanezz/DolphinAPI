@@ -146,6 +146,9 @@ def get_new_by_media(request, media_id, limit):
 @token_required
 @csrf_exempt
 def get_latest_news(request, media_id):
+    graph = Graph("http://arqui5.ing.puc.cl:7474/db/data/")
+    auth("arqui5.ing.puc.cl:7474", "neo4j", "admin")
+    cypher = graph.cypher
     cluster = Cluster(['arqui4.ing.puc.cl'])
     session = cluster.connect('rss')
     response_data = {}
@@ -157,7 +160,13 @@ def get_latest_news(request, media_id):
                 content = session.execute("SELECT content FROM news WHERE id = '" + str(i[0])  + "'")
                 if len(content) > 0:
                     if len(content[0]) > 0:
-                        response_data[str(i[0])] = content[0][0]
+                        aux_news_dict = {'content': content[0][0]}
+                        nquery = "MATCH (n: New {name: '" + str(i[0]) + "'})-[r: title]->m RETURN m.name"
+                        results = graph.cypher.execute(nquery)
+                        if len(results) > 0:
+                            title = results[0][0]
+                        aux_news_dict['title'] = title
+                        response_data[str(i[0])] = aux_news_dict
     cluster.shutdown()
     return JsonResponse(response_data)
 
@@ -168,6 +177,8 @@ def get_news(request, limit):
     session = cluster.connect('rss')
     response_data = {}
     if int(limit) > 0:
+        if int(limit) > 10:
+            limit = 10
         rows = session.execute("SELECT * FROM news LIMIT " + str(limit))
     else:
         rows = session.execute("SELECT * FROM news")
@@ -217,7 +228,7 @@ def filter_by_category(request, category):
     nid = request.POST.get('nid')
     s = ""
     s += "MATCH(n: New)-[r:place]->(m: Category {name: '" + str(category).lower() + "'}) \n"
-    s += "RETURN n.name"
+    s += "RETURN n.name LIMIT 30"
     results = graph.cypher.execute(s)
     aux_dict = {}
     for result in results:
